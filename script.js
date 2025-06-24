@@ -92,16 +92,30 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // --- UPDATED PEG LAYOUT LOGIC ---
     function createPegs() {
         pegs.length = 0; // Clear existing pegs
         const rows = 10;
         const startY = 200;
         const rowSpacing = 55;
+        const pegsInEvenRow = 7;
+        const pegsInOddRow = 6;
+        
+        // Calculate spacing based on the row with more pegs to create a consistent grid
+        const horizontalSpacing = CANVAS_WIDTH / (pegsInEvenRow + 1);
+
         for (let i = 0; i < rows; i++) {
-            const numPegsInRow = i % 2 === 0 ? 7 : 6;
             const y = startY + i * rowSpacing;
+            const isEvenRow = i % 2 === 0;
+            const numPegsInRow = isEvenRow ? pegsInEvenRow : pegsInOddRow;
+            
+            // Calculate the starting offset for the entire row.
+            // Even rows start at the first slot.
+            // Odd rows are shifted by half a slot to be in the middle of the gaps above.
+            const rowOffset = isEvenRow ? horizontalSpacing : horizontalSpacing * 1.5;
+
             for (let j = 0; j < numPegsInRow; j++) {
-                const x = (CANVAS_WIDTH / (numPegsInRow + 1)) * (j + 1) + (i % 2 === 0 ? 0 : 30);
+                const x = rowOffset + (j * horizontalSpacing);
                 pegs.push({ x, y, radius: 8 });
             }
         }
