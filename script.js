@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const GRAVITY = 0.3;
     const FRICTION = 0.995; // Air resistance
     const BOUNCE_FACTOR = 0.7; // Energy lost on bounce
+    const COIN_RADIUS = 12;
+    const PEG_RADIUS = 8;
+
 
     // --- Sound Effects (using Web Audio API for self-containment) ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -84,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
         coin = {
             x: LAUNCH_POS.x,
             y: LAUNCH_POS.y,
-            radius: 12,
+            radius: COIN_RADIUS,
             vx: 0,
             vy: 0,
             rotation: 0,
@@ -94,39 +97,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UPDATED PEG LAYOUT LOGIC ---
     function createPegs() {
-        pegs.length = 0; // Clear existing pegs
+        pegs.length = 0;
         const rows = 10;
         const startY = 200;
         const rowSpacing = 55;
         const pegsInEvenRow = 7;
         const pegsInOddRow = 6;
-        
-        // Calculate spacing based on the row with more pegs to create a consistent grid
-        const horizontalSpacing = CANVAS_WIDTH / (pegsInEvenRow + 1);
+
+        // --- UPDATED LOGIC HERE: Ensure gap is wider than coin diameter ---
+        // The gap between the wall and the peg's edge must be > coin's diameter.
+        // Gap = horizontalMargin - PEG_RADIUS. So we need:
+        // horizontalMargin - PEG_RADIUS > COIN_RADIUS * 2
+        // Therefore, horizontalMargin > COIN_RADIUS * 2 + PEG_RADIUS
+        const horizontalMargin = (COIN_RADIUS * 2) + PEG_RADIUS + 3; // Coin Diameter + Peg Radius + 3px buffer
+
+        const playableWidth = CANVAS_WIDTH - 2 * horizontalMargin;
+        const baseSpacing = playableWidth / (pegsInEvenRow - 1);
 
         for (let i = 0; i < rows; i++) {
             const y = startY + i * rowSpacing;
             const isEvenRow = i % 2 === 0;
-            const numPegsInRow = isEvenRow ? pegsInEvenRow : pegsInOddRow;
-            
-            // Calculate the starting offset for the entire row.
-            // Even rows start at the first slot.
-            // Odd rows are shifted by half a slot to be in the middle of the gaps above.
-            const rowOffset = isEvenRow ? horizontalSpacing : horizontalSpacing * 1.5;
 
-            for (let j = 0; j < numPegsInRow; j++) {
-                const x = rowOffset + (j * horizontalSpacing);
-                pegs.push({ x, y, radius: 8 });
+            if (isEvenRow) {
+                for (let j = 0; j < pegsInEvenRow; j++) {
+                    const x = horizontalMargin + (j * baseSpacing);
+                    pegs.push({ x, y, radius: PEG_RADIUS });
+                }
+            } else { // Odd Row
+                const spacing = playableWidth / (pegsInOddRow - 1); // Use specific spacing for this row
+                for (let j = 0; j < pegsInOddRow; j++) {
+                    // Start this row offset by half a base space to be in the gaps of the row above.
+                    const x = horizontalMargin + (baseSpacing / 2) + (j * baseSpacing);
+                    pegs.push({ x, y, radius: PEG_RADIUS });
+                }
             }
         }
     }
+
 
     function createGates() {
         gates.length = 0; // Clear existing gates
         const gateY = CANVAS_HEIGHT - 50;
         const gateHeight = 50;
         
-        // --- UPDATED GATE COLORS ---
         gates.push({ x: 50,  width: 60, y: gateY, height: gateHeight, points: 20, color: '#888888', flash: 0 }); // Medium Grey
         gates.push({ x: 160, width: 40, y: gateY, height: gateHeight, points: 50, color: '#bbbbbb', flash: 0 }); // Light Grey
         gates.push({ x: 250, width: 100,y: gateY, height: gateHeight, points: 10, color: '#555555', flash: 0 }); // Dark Grey
@@ -158,11 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState = 'flying';
             coin.isActive = true;
             
-            // Calculate launch velocity
             const launchPower = Math.min(Math.hypot(mouse.x - coin.x, mouse.y - coin.y) / 10, 15);
             const angle = Math.atan2(mouse.y - coin.y, mouse.x - coin.x);
             
-            // Add slight randomness for "imperfect" launch
             const randomFactor = 1 + (Math.random() - 0.5) * 0.1; // +/- 5%
             
             coin.vx = Math.cos(angle) * launchPower * randomFactor;
@@ -210,13 +221,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const distance = Math.hypot(dx, dy);
             if (distance < coin.radius + peg.radius) {
                 playSound('bounce');
-                // Basic reflection
                 const angle = Math.atan2(dy, dx);
                 const overlap = coin.radius + peg.radius - distance;
                 coin.x += Math.cos(angle) * overlap;
                 coin.y += Math.sin(angle) * overlap;
                 
-                // Reflect velocity
                 const normalX = dx / distance;
                 const normalY = dy / distance;
                 const dotProduct = (coin.vx * normalX + coin.vy * normalY);
@@ -229,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (coin.y > CANVAS_HEIGHT - 80) {
             let hasScored = false;
             gates.forEach(gate => {
-                if (coin.x > gate.x && coin.x < gate.x + gate.width) {
+                if (!hasScored && coin.x > gate.x && coin.x < gate.x + gate.width) {
                     score += gate.points;
                     gate.flash = 60; // flash for 60 frames
                     createParticles(coin.x, coin.y, gate.color, gate.points);
@@ -278,7 +287,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 color
             });
         }
-        // Add score text particle
         particles.push({
             x, y: y-10,
             vx: 0,
@@ -295,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
             p.life--;
             p.x += p.vx;
             p.y += p.vy;
-            if (p.text) p.vy *= 0.95; // slow down text
+            if (p.text) p.vy *= 0.95;
             
             if (p.life <= 0) {
                 particles.splice(i, 1);
@@ -305,10 +313,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Rendering (Draw) ---
     function draw() {
-        // Clear canvas
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         
-        // Draw launcher slot (Updated Colors)
         ctx.fillStyle = '#000';
         ctx.strokeStyle = '#cccccc';
         ctx.lineWidth = 2;
@@ -322,7 +328,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        // Draw gates
         gates.forEach(gate => {
             ctx.strokeStyle = gate.flash > 0 ? '#fff' : gate.color;
             ctx.lineWidth = gate.flash > 0 ? 4 : 2;
@@ -338,7 +343,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(gate.flash > 0) gate.flash--;
         });
         
-        // Draw pegs (Updated Colors)
         pegs.forEach(peg => {
             ctx.beginPath();
             ctx.arc(peg.x, peg.y, peg.radius, 0, Math.PI * 2);
@@ -349,38 +353,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         ctx.shadowBlur = 0;
         
-        // Draw aiming line and trajectory preview (Updated Colors)
         if (gameState === 'aiming') {
             const power = Math.min(Math.hypot(mouse.x - coin.x, mouse.y - coin.y) / 10, 15);
             const angle = Math.atan2(mouse.y - coin.y, mouse.x - coin.x);
             
-            // Aiming line
             ctx.beginPath();
             ctx.moveTo(coin.x, coin.y);
             ctx.lineTo(mouse.x, mouse.y);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; // White transparent line
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Trajectory Preview
             drawTrajectory(power, angle);
         }
         
-        // Draw coin (Already grey, no changes needed)
         if (coin.isActive || gameState === 'ready' || gameState === 'aiming') {
             ctx.save();
             ctx.translate(coin.x, coin.y);
             ctx.rotate(coin.rotation);
             ctx.beginPath();
             ctx.arc(0, 0, coin.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#c0c0c0'; // Silver
+            ctx.fillStyle = '#c0c0c0';
             ctx.strokeStyle = '#f0f0f0';
             ctx.lineWidth = 2;
             ctx.shadowColor = '#fff';
             ctx.shadowBlur = 10;
             ctx.fill();
             ctx.stroke();
-            // Line to show spin
             ctx.beginPath();
             ctx.moveTo(0, -coin.radius);
             ctx.lineTo(0, coin.radius);
@@ -391,7 +390,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.shadowBlur = 0;
         }
         
-        // Draw Particles
         updateParticles();
         particles.forEach(p => {
             ctx.globalAlpha = p.life / 60;
@@ -428,22 +426,21 @@ document.addEventListener('DOMContentLoaded', () => {
             simCoin.x += simCoin.vx;
             simCoin.y += simCoin.vy;
 
-            // Simplified wall bounce for preview
             if (simCoin.x > CANVAS_WIDTH || simCoin.x < 0) simCoin.vx *= -1;
 
-            if (i % 3 === 0) { // Draw a segment every 3 steps
+            if (i % 3 === 0) {
                 ctx.lineTo(simCoin.x, simCoin.y);
             }
             if (simCoin.y > CANVAS_HEIGHT) break;
         }
         ctx.stroke();
-        ctx.setLineDash([]); // Reset line dash
+        ctx.setLineDash([]);
     }
 
 
     // --- Main Game Loop ---
     function gameLoop() {
-        if (gameState === 'gameOver') return; // Stop the loop if game is over
+        if (gameState === 'gameOver') return;
         
         update();
         draw();
