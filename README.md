@@ -9,12 +9,6 @@ A stylish web-based physics game where you flick a coin into scoring gates, boun
 
 ---
 
-## 🎮 Play It Now
-👉 [Play Coin Flick on GitHub Pages](https://yourusername.github.io/coin-flick/)  
-*(Replace the link with your actual GitHub Pages URL)*
-
----
-
 ## 📸 Screenshot
 
 ![Coin Flick Screenshot](screenshot.png)  
