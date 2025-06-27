@@ -9,10 +9,10 @@ A stylish web-based physics game where you flick a coin into scoring gates, boun
 
 ---
 
-## 📸 Screenshot
+## 📸 Screenshots
 
-![Coin Flick Screenshot](screenshot.png)  
-*Classic coin physics game with scoring gates, pegs, particle effects, and audio feedback!*
+### Game
+![Game 1](screenshots/game_1.png)  
 
 ---
 
